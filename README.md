@@ -84,7 +84,3 @@ curl http://localhost:3001/health
 | `AI_MODEL` | Model to use (default: `gpt-4o-mini`) |
 | `PORT` | Oracle port (default: 3001) |
 | `MARKET_CREATION_INTERVAL_MS` | Generation interval (default: 24h) |
-
-## License
-
-AGPL-3.0
