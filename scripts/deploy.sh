@@ -187,6 +187,9 @@ cd "$BASE_DIR/oracle"
 echo "Installing npm dependencies..."
 npm ci --silent 2>/dev/null || npm install --silent
 
+echo "Building TypeScript..."
+npm run build
+
 echo "Running Prisma migrations..."
 npx prisma migrate deploy 2>/dev/null || npx prisma migrate dev --name init
 
