@@ -1,0 +1,128 @@
+# ===========================
+# Environment Variables
+# ===========================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+# Keep env.example as template
+
+# ===========================
+# Python
+# ===========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+.python-version
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# ===========================
+# Node.js
+# ===========================
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# ===========================
+# Prisma
+# ===========================
+# Generated Prisma client (regenerated on install)
+# Keep schema.prisma in version control
+
+# ===========================
+# Playwright
+# ===========================
+playwright-report/
+playwright/.cache/
+test-results/
+
+# ===========================
+# PM2
+# ===========================
+.pm2/
+ecosystem.config.cjs.bak
+
+# ===========================
+# IDE / Editors
+# ===========================
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# ===========================
+# OS Files
+# ===========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ===========================
+# Misc
+# ===========================
+*.bak
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/

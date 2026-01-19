@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Market {
+  id                String   @id @default(cuid())
+  
+  // Core market info
+  question          String
+  description       String?
+  category          String
+  sourceUrl         String
+  
+  // Timing
+  bettingClosesAt   DateTime
+  resolvesAt        DateTime
+  
+  // Status
+  status            String   @default("pending")
+  resolvedOutcome   Boolean?
+  resolutionContext String?
+  
+  // LMSR state (cached from chain for fast reads)
+  b                 Float    @default(100)  // Liquidity parameter
+  qYes              Float    @default(0)    // Outstanding YES shares
+  qNo               Float    @default(0)    // Outstanding NO shares
+  
+  // Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  bets              Bet[]
+
+  @@unique([question, bettingClosesAt])
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model Bet {
+  id          String   @id @default(cuid())
+  marketId    String
+  
+  visitorId   String?  // Cookie-based ID for anonymous users
+  outcome     Boolean  // true = YES, false = NO
+  shares      Float    // LMSR shares purchased
+  costBasis   Float    // Tokens spent
+  
+  createdAt   DateTime @default(now())
+  
+  market      Market   @relation(fields: [marketId], references: [id])
+  
+  @@index([marketId])
+  @@index([visitorId])
+  @@index([createdAt])
+}
