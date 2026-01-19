@@ -8,6 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: staging
     steps:
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
@@ -16,6 +17,27 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /home/ospm/ospm-services
+            # Clone if not exists, otherwise pull
+            if [ ! -d "/home/ubuntu/ospm-services" ]; then
+              git clone git@github.com:timi-ty/ospm-services.git /home/ubuntu/ospm-services
+            fi
+            cd /home/ubuntu/ospm-services
             git pull origin main
+            
+            # Write .env from GitHub Secrets
+            cat > .env << 'ENVEOF'
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            AI_MODEL=gpt-4o-mini
+            ORACLE_CALLBACK_URL=http://localhost:3001/api/markets/ingest
+            PORT=3001
+            DATA_SERVICE_URL=http://localhost:8000
+            NODE_ENV=production
+            TICK_INTERVAL_MS=60000
+            MARKET_CREATION_INTERVAL_MS=86400000
+            ENVEOF
+            
+            # Ensure oracle has access to .env
+            ln -sf ../.env oracle/.env 2>/dev/null || true
+            
             ./scripts/deploy.sh
