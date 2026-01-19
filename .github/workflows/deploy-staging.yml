@@ -17,6 +17,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e  # Exit on any error
+            
             # Clone if not exists, otherwise pull
             if [ ! -d "/home/ubuntu/ospm-services" ]; then
               git clone git@github.com:timi-ty/ospm-services.git /home/ubuntu/ospm-services
