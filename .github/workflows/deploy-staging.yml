@@ -22,7 +22,8 @@ jobs:
               git clone git@github.com:timi-ty/ospm-services.git /home/ubuntu/ospm-services
             fi
             cd /home/ubuntu/ospm-services
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main
             
             # Write .env from GitHub Secrets
             cat > .env << 'ENVEOF'
