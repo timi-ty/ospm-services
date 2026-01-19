@@ -94,9 +94,8 @@ if $IS_LINUX; then
 fi
 
 # Configure nginx reverse proxy
-if $IS_LINUX; then
-    echo "Configuring nginx reverse proxy..."
-    sudo tee /etc/nginx/sites-available/ospm > /dev/null << 'NGINXEOF'
+echo "Configuring nginx reverse proxy..."
+sudo tee /etc/nginx/sites-available/ospm > /dev/null << 'NGINXEOF'
 server {
     listen 80;
     server_name ospm-services.waterleaf.ai;
@@ -124,12 +123,11 @@ server {
 }
 NGINXEOF
 
-    # Enable site (remove default if exists, link ospm)
-    sudo rm -f /etc/nginx/sites-enabled/default
-    sudo ln -sf /etc/nginx/sites-available/ospm /etc/nginx/sites-enabled/ospm
-    sudo nginx -t && sudo systemctl reload nginx
-    echo "✓ nginx configured"
-fi
+# Enable site (remove default if exists, link ospm)
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf /etc/nginx/sites-available/ospm /etc/nginx/sites-enabled/ospm
+sudo nginx -t && sudo systemctl reload nginx
+echo "✓ nginx configured"
 
 # Swap (Linux only, 2GB - prevents OOM during builds)
 if $IS_LINUX && [ ! -f /swapfile ]; then
