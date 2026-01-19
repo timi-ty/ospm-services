@@ -40,4 +40,5 @@ jobs:
             # Ensure oracle has access to .env
             ln -sf ../.env oracle/.env 2>/dev/null || true
             
+            chmod +x ./scripts/deploy.sh
             ./scripts/deploy.sh
