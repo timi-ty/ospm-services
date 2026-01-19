@@ -12,7 +12,7 @@ class DataSource:
     use_javascript: bool = False
     wait_selector: str | None = None
     wait_timeout_ms: int = 5000
-    max_links_to_scrape: int = 3
+    max_links_to_scrape: int = 6
 
 
 SOURCES: dict[str, DataSource] = {

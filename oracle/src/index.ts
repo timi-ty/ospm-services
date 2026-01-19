@@ -24,14 +24,6 @@ async function main() {
   heart.register("marketCreator", marketCreator);
   heart.start(config.tickIntervalMs);
   console.log("✓ Orchestrator started");
-
-  // Dev mode: trigger immediate generation
-  if (config.nodeEnv === "development") {
-    console.log("Dev mode: triggering market generation in 5s...");
-    setTimeout(() => {
-      marketCreator.generateNow().catch(console.error);
-    }, 5000);
-  }
 }
 
 // Graceful shutdown

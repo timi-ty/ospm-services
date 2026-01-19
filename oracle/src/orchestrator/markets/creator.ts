@@ -40,16 +40,6 @@ class MarketCreator implements TickHandler {
       console.error("[MarketCreator] Failed:", error);
     }
   }
-
-  // Manual trigger for development
-  async generateNow(): Promise<void> {
-    this.lastTickedAt = null;
-    await this.tick({
-      tickCount: 0,
-      tickTime: new Date(),
-      intervalMs: 0,
-    });
-  }
 }
 
 export const marketCreator = new MarketCreator();
