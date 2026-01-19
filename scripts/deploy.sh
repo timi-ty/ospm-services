@@ -93,6 +93,44 @@ if $IS_LINUX; then
     fi
 fi
 
+# Configure nginx reverse proxy
+if $IS_LINUX; then
+    echo "Configuring nginx reverse proxy..."
+    sudo tee /etc/nginx/sites-available/ospm > /dev/null << 'NGINXEOF'
+server {
+    listen 80;
+    server_name ospm-services.waterleaf.ai;
+
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+
+        # CORS headers
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Content-Type, Authorization" always;
+
+        if ($request_method = OPTIONS) {
+            return 204;
+        }
+    }
+}
+NGINXEOF
+
+    # Enable site (remove default if exists, link ospm)
+    sudo rm -f /etc/nginx/sites-enabled/default
+    sudo ln -sf /etc/nginx/sites-available/ospm /etc/nginx/sites-enabled/ospm
+    sudo nginx -t && sudo systemctl reload nginx
+    echo "✓ nginx configured"
+fi
+
 # Swap (Linux only, 2GB - prevents OOM during builds)
 if $IS_LINUX && [ ! -f /swapfile ]; then
     echo "Setting up swap..."
