@@ -16,13 +16,12 @@ class MarketCreator implements TickHandler {
     }
 
     console.log(`[MarketCreator] Running at tick #${context.tickCount}`);
-    this.lastTickedAt = context.tickTime;
 
     try {
       // Check Data Service health
       const healthy = await dataServiceClient.healthCheck();
       if (!healthy) {
-        console.error("[MarketCreator] Data Service unhealthy, skipping");
+        console.error("[MarketCreator] Data Service unhealthy, will retry next tick");
         return;
       }
 
@@ -35,9 +34,12 @@ class MarketCreator implements TickHandler {
       const { job_id } = await dataServiceClient.triggerGeneration(sourceIds);
       console.log(`[MarketCreator] Generation triggered, job_id: ${job_id}`);
 
+      // Only mark as ticked after successful trigger
+      this.lastTickedAt = context.tickTime;
+
       // Markets will arrive via POST /api/markets/ingest callback
     } catch (error) {
-      console.error("[MarketCreator] Failed:", error);
+      console.error("[MarketCreator] Failed, will retry next tick:", error);
     }
   }
 }
