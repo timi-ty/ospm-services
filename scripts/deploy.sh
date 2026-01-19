@@ -9,23 +9,11 @@ echo "=== OSPM Deployment ==="
 # PREREQUISITES (install only if missing)
 # ============================================
 
-# Detect OS
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    IS_LINUX=true
-else
-    IS_LINUX=false
-fi
-
 # Node.js
 if ! command -v node &>/dev/null; then
     echo "Installing Node.js 20..."
-    if $IS_LINUX; then
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-        sudo apt install -y nodejs
-    else
-        echo "Please install Node.js: https://nodejs.org"
-        exit 1
-    fi
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt install -y nodejs
 else
     echo "✓ Node.js $(node -v)"
 fi
@@ -34,15 +22,10 @@ fi
 PYTHON_CMD="python3.11"
 if ! command -v $PYTHON_CMD &>/dev/null; then
     echo "Installing Python 3.11..."
-    if $IS_LINUX; then
-        sudo apt install -y software-properties-common
-        sudo add-apt-repository -y ppa:deadsnakes/ppa
-        sudo apt update
-        sudo apt install -y python3.11 python3.11-venv python3.11-dev
-    else
-        echo "Please install Python 3.11: brew install python@3.11"
-        exit 1
-    fi
+    sudo apt install -y software-properties-common
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
+    sudo apt update
+    sudo apt install -y python3.11 python3.11-venv python3.11-dev
 else
     echo "✓ Python $($PYTHON_CMD --version)"
 fi
@@ -50,29 +33,20 @@ fi
 # PostgreSQL
 if ! command -v psql &>/dev/null; then
     echo "Installing PostgreSQL..."
-    if $IS_LINUX; then
-        sudo apt install -y postgresql postgresql-contrib
-        sudo systemctl enable postgresql
-    else
-        echo "Please install PostgreSQL"
-        exit 1
-    fi
+    sudo apt install -y postgresql postgresql-contrib
+    sudo systemctl enable postgresql
 else
     echo "✓ PostgreSQL installed"
 fi
 
-# Start PostgreSQL (Linux)
-if $IS_LINUX; then
-    sudo systemctl start postgresql 2>/dev/null || true
-fi
+# Start PostgreSQL
+sudo systemctl start postgresql 2>/dev/null || true
 
 # Create database and user (idempotent - ignore "already exists" errors)
-if $IS_LINUX; then
-    echo "Ensuring database exists..."
-    sudo -u postgres psql -c "CREATE USER ospm WITH PASSWORD 'ospm_secure_password';" 2>/dev/null || true
-    sudo -u postgres psql -c "CREATE DATABASE ospm OWNER ospm;" 2>/dev/null || true
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ospm TO ospm;" 2>/dev/null || true
-fi
+echo "Ensuring database exists..."
+sudo -u postgres psql -c "CREATE USER ospm WITH PASSWORD 'ospm_secure_password';" 2>/dev/null || true
+sudo -u postgres psql -c "CREATE DATABASE ospm OWNER ospm;" 2>/dev/null || true
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ospm TO ospm;" 2>/dev/null || true
 
 # PM2
 if ! command -v pm2 &>/dev/null; then
@@ -82,15 +56,13 @@ else
     echo "✓ PM2 installed"
 fi
 
-# nginx (Linux only)
-if $IS_LINUX; then
-    if ! command -v nginx &>/dev/null; then
-        echo "Installing nginx..."
-        sudo apt install -y nginx
-        sudo systemctl enable nginx
-    else
-        echo "✓ nginx installed"
-    fi
+# nginx
+if ! command -v nginx &>/dev/null; then
+    echo "Installing nginx..."
+    sudo apt install -y nginx
+    sudo systemctl enable nginx
+else
+    echo "✓ nginx installed"
 fi
 
 # Configure nginx reverse proxy
@@ -120,8 +92,8 @@ sudo ln -sf /etc/nginx/sites-available/ospm /etc/nginx/sites-enabled/ospm
 sudo nginx -t && sudo systemctl reload nginx
 echo "✓ nginx configured"
 
-# Swap (Linux only, 2GB - prevents OOM during builds)
-if $IS_LINUX && [ ! -f /swapfile ]; then
+# Swap (2GB - prevents OOM during builds)
+if [ ! -f /swapfile ]; then
     echo "Setting up swap..."
     sudo fallocate -l 2G /swapfile
     sudo chmod 600 /swapfile
@@ -129,14 +101,8 @@ if $IS_LINUX && [ ! -f /swapfile ]; then
     sudo swapon /swapfile
     echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
     echo "✓ Swap created"
-fi
-
-# Playwright system dependencies (Linux only)
-if $IS_LINUX; then
-    if ! dpkg -l | grep -q libnss3; then
-        echo "Installing Playwright dependencies..."
-        sudo apt install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
-    fi
+else
+    echo "✓ Swap exists"
 fi
 
 # ============================================
@@ -144,8 +110,8 @@ fi
 # ============================================
 
 # Determine base directory
-if [ -d "/home/ospm/ospm-services" ]; then
-    BASE_DIR="/home/ospm/ospm-services"
+if [ -d "/home/ubuntu/ospm-services" ]; then
+    BASE_DIR="/home/ubuntu/ospm-services"
 else
     BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
@@ -166,8 +132,13 @@ fi
 source venv/bin/activate
 echo "Installing Python dependencies..."
 pip install -r requirements.txt --quiet
+
 echo "Installing Playwright Firefox..."
 playwright install firefox
+
+echo "Installing Playwright system dependencies..."
+sudo $(which playwright) install-deps firefox
+
 deactivate
 
 # Oracle Service
@@ -199,7 +170,7 @@ pm2 restart ecosystem.config.cjs --update-env 2>/dev/null || pm2 start ecosystem
 # Health checks
 echo ""
 echo "--- Health Checks ---"
-sleep 3
+sleep 5
 curl -sf http://localhost:8000/health >/dev/null && echo "✓ Data Service healthy" || echo "✗ Data Service not responding"
 curl -sf http://localhost:3001/health >/dev/null && echo "✓ Oracle healthy" || echo "✗ Oracle not responding"
 
