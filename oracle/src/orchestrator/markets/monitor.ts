@@ -1,7 +1,7 @@
 import { shouldTick, type TickContext, type TickHandler } from "../types";
 import { dataServiceClient } from "../dataServiceClient";
 import { marketExecutor } from "./executor";
-import { getMarketContract } from "../../shared/blockchain/contracts";
+import { getMarketContract, marketFactory } from "../../shared/blockchain/contracts";
 import { prisma } from "../../shared/database/prisma";
 import { ethers } from "ethers";
 import { notifyAdmin } from "../../shared/notifications/service";
@@ -21,6 +21,7 @@ class MarketMonitor implements TickHandler {
     if (shouldTick(this.lastLifecycleAt, LIFECYCLE_TICK_MS, context.tickTime)) {
       this.lastLifecycleAt = context.tickTime;
       console.log(`[MarketMonitor] Running lifecycle at tick #${context.tickCount}`);
+      await this.syncMarketsFromChain();
       await this.closeBettingExpired();
       await this.resolveExpiredMarkets();
       await this.finalizeProposedMarkets();
@@ -30,6 +31,7 @@ class MarketMonitor implements TickHandler {
     // Full status sync every 30 minutes
     if (shouldTick(this.lastSyncAt, SYNC_TICK_MS, context.tickTime)) {
       this.lastSyncAt = context.tickTime;
+      await this.syncMarketsFromChain();
       await this.syncOnChainStatus();
       await this.syncAllUserBets();
     }
@@ -132,6 +134,102 @@ class MarketMonitor implements TickHandler {
           error
         );
       }
+    }
+  }
+
+  // ── Market Discovery from Chain ──────────────────────────────────────
+
+  private async syncMarketsFromChain() {
+    try {
+      const chainAddresses: string[] = await marketFactory.getMarkets();
+      if (chainAddresses.length === 0) return;
+
+      const dbMarkets = await prisma.market.findMany({
+        where: { contractAddress: { not: null } },
+        select: { contractAddress: true },
+      });
+      const knownAddresses = new Set(
+        dbMarkets.map((m) => m.contractAddress!.toLowerCase())
+      );
+
+      const unknown = chainAddresses.filter(
+        (addr) => !knownAddresses.has(addr.toLowerCase())
+      );
+      if (unknown.length === 0) return;
+
+      console.log(`[MarketMonitor] Discovered ${unknown.length} unknown market(s) on-chain`);
+
+      let imported = 0;
+      for (const address of unknown) {
+        try {
+          const contract = getMarketContract(address);
+          const [question, sourceUrl, closeTs, resolveTs, statusNum, chainB, chainQYes, chainQNo] =
+            await Promise.all([
+              contract.question(),
+              contract.sourceUrl(),
+              contract.bettingCloseTimestamp(),
+              contract.resolutionTimestamp(),
+              contract.status(),
+              contract.b(),
+              contract.qYes(),
+              contract.qNo(),
+            ]);
+
+          const status = ON_CHAIN_STATUS[Number(statusNum)] || "open";
+          const bettingClosesAt = new Date(Number(closeTs) * 1000);
+          const resolvesAt = new Date(Number(resolveTs) * 1000);
+          const qYes = Number(ethers.formatEther(chainQYes));
+          const qNo = Number(ethers.formatEther(chainQNo));
+          const b = Number(ethers.formatEther(chainB));
+
+          // Enrich via data service (AI-generated description, category, resolution_context)
+          let category = "uncategorized";
+          let description: string | null = null;
+          let resolutionContext: string | null = null;
+          try {
+            const enriched = await dataServiceClient.enrichMarket(question, sourceUrl);
+            category = enriched.category;
+            description = enriched.description;
+            resolutionContext = enriched.resolution_context;
+          } catch {
+            console.warn(`[MarketMonitor] Enrichment unavailable for "${question}", using defaults`);
+          }
+
+          const data: any = {
+            question,
+            description,
+            sourceUrl,
+            category,
+            resolutionContext,
+            contractAddress: address,
+            bettingClosesAt,
+            resolvesAt,
+            status,
+            b,
+            qYes,
+            qNo,
+            deployedAt: new Date(),
+          };
+
+          if (status === "resolved") {
+            data.resolvedOutcome = await contract.resolvedOutcome();
+            data.resolvedAt = new Date();
+          }
+
+          await prisma.market.create({ data });
+          imported++;
+          console.log(`[MarketMonitor] Imported "${question}" (${category}) from ${address}`);
+        } catch (e: any) {
+          if (e?.code === "P2002") continue;
+          console.warn(`[MarketMonitor] Failed to import market ${address}:`, e?.message || e);
+        }
+      }
+
+      if (imported > 0) {
+        console.log(`[MarketMonitor] Imported ${imported} market(s) from chain`);
+      }
+    } catch (error) {
+      console.warn("[MarketMonitor] Market discovery failed:", error);
     }
   }
 

@@ -288,6 +288,75 @@ async def verify_outcome_endpoint(request: VerifyOutcomeRequest):
     )
 
 
+class EnrichMarketRequest(BaseModel):
+    question: str
+    source_url: str
+
+
+class EnrichMarketResponse(BaseModel):
+    description: str
+    category: str
+    resolution_context: str
+
+
+ENRICH_PROMPT = """You are enriching a prediction market entry for a database.
+
+MARKET QUESTION: {question}
+SOURCE URL: {source_url}
+
+PAGE CONTENT (from source URL):
+{page_content}
+
+Generate metadata for this market. Respond with EXACTLY this JSON:
+{{
+  "description": "1-2 sentence description of the market and its context",
+  "category": "one of: sports, news, politics, society, meta, economy, events, entertainment, education",
+  "resolution_context": "brief guidance on how to verify the outcome when the time comes"
+}}
+
+Rules:
+- description should explain the market for someone unfamiliar with the topic
+- category must be exactly one of the listed values
+- resolution_context should reference what to check and when
+"""
+
+
+@app.post("/enrich-market", response_model=EnrichMarketResponse)
+async def enrich_market(request: EnrichMarketRequest):
+    """Enrich a discovered market with AI-generated description, category, and resolution context."""
+    if not openai_client:
+        raise HTTPException(status_code=503, detail="OpenAI not configured")
+
+    from verifier.analyzer import fetch_page_content
+
+    model = os.getenv("AI_MODEL", "gpt-4o-mini")
+
+    page_content = await fetch_page_content(request.source_url)
+    prompt = ENRICH_PROMPT.format(
+        question=request.question,
+        source_url=request.source_url,
+        page_content=page_content[:8000] if page_content else "(could not fetch page content)",
+    )
+
+    try:
+        import json
+        response = await openai_client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.2,
+        )
+        data = json.loads(response.choices[0].message.content or "{}")
+        return EnrichMarketResponse(
+            description=data.get("description", ""),
+            category=data.get("category", "uncategorized"),
+            resolution_context=data.get("resolution_context", ""),
+        )
+    except Exception as e:
+        logger.error(f"Enrichment failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Enrichment failed: {str(e)}")
+
+
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
     """Get status of a generation job."""

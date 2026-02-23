@@ -73,6 +73,21 @@ class DataServiceClient {
     return (await response.json()) as VerifyOutcomeResponse;
   }
 
+  async enrichMarket(
+    question: string,
+    sourceUrl: string
+  ): Promise<{ description: string; category: string; resolution_context: string }> {
+    const response = await fetch(`${this.baseUrl}/enrich-market`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, source_url: sourceUrl }),
+    });
+    if (!response.ok) {
+      throw new Error(`Data Service enrich error (${response.status})`);
+    }
+    return response.json() as Promise<{ description: string; category: string; resolution_context: string }>;
+  }
+
   async healthCheck(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/health`);
