@@ -4,6 +4,8 @@ import { marketExecutor } from "./executor";
 import { getMarketContract } from "../../shared/blockchain/contracts";
 import { prisma } from "../../shared/database/prisma";
 import { ethers } from "ethers";
+import { notifyAdmin } from "../../shared/notifications/service";
+import { syncUserBetsFromChain } from "../../server/users/sync";
 
 const LIFECYCLE_TICK_MS = 5 * 60 * 1000; // 5 minutes
 const SYNC_TICK_MS = 30 * 60 * 1000; // 30 minutes
@@ -29,6 +31,7 @@ class MarketMonitor implements TickHandler {
     if (shouldTick(this.lastSyncAt, SYNC_TICK_MS, context.tickTime)) {
       this.lastSyncAt = context.tickTime;
       await this.syncOnChainStatus();
+      await this.syncAllUserBets();
     }
   }
 
@@ -81,6 +84,7 @@ class MarketMonitor implements TickHandler {
           console.log(
             `[MarketMonitor] Proposed ${result.outcome ? "YES" : "NO"} for "${market.question}" (confidence: ${result.confidence})`
           );
+          notifyAdmin(`Proposed ${result.outcome ? "YES" : "NO"} for: ${market.question}`);
         } else {
           await prisma.market.update({
             where: { id: market.id },
@@ -89,12 +93,14 @@ class MarketMonitor implements TickHandler {
           console.log(
             `[MarketMonitor] Uncertain outcome for "${market.question}" — flagged for review`
           );
+          notifyAdmin(`Manual review needed: ${market.question}`);
         }
       } catch (error) {
         console.error(
           `[MarketMonitor] Failed to resolve "${market.question}":`,
           error
         );
+        notifyAdmin(`Oracle error: Failed to resolve "${market.question}"`);
       }
     }
   }
@@ -215,6 +221,30 @@ class MarketMonitor implements TickHandler {
 
     if (synced > 0) {
       console.log(`[MarketMonitor] Synced on-chain status for ${synced} market(s)`);
+    }
+  }
+
+  // ── Bet Sync ────────────────────────────────────────────────────────
+
+  private async syncAllUserBets() {
+    const users = await prisma.user.findMany({
+      select: { id: true, address: true },
+    });
+
+    if (users.length === 0) return;
+
+    let synced = 0;
+    for (const user of users) {
+      try {
+        await syncUserBetsFromChain(user.id, user.address);
+        synced++;
+      } catch {
+        // Non-critical
+      }
+    }
+
+    if (synced > 0) {
+      console.log(`[MarketMonitor] Synced bets for ${synced} user(s)`);
     }
   }
 }

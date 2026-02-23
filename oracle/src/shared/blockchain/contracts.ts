@@ -22,6 +22,7 @@ const BINARY_MARKET_ABI = [
   "function resolvedOutcome() view returns (bool)",
   "function proposedTimestamp() view returns (uint256)",
   "function DISPUTE_WINDOW() view returns (uint256)",
+  "function bets(address) view returns (uint256 shares, bool outcome, uint256 costBasis, bool claimed)",
   "function proposeResolution(bool _outcome) external",
   "function finalizeResolution() external",
   "event ResolutionProposed(bool outcome, uint256 timestamp)",

@@ -6,6 +6,8 @@ import { config } from "../shared/config/env";
 import { marketsRouter } from "./markets/routes";
 import { adminRouter } from "./admin/routes";
 import { authRouter } from "./auth/routes";
+import { usersRouter } from "./users/routes";
+import { leaderboardRouter } from "./leaderboard/routes";
 
 const app = express();
 
@@ -30,6 +32,8 @@ app.use(limiter);
 app.use("/api/auth", authRouter);
 app.use("/api/markets", marketsRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/leaderboard", leaderboardRouter);
 
 // Health check
 app.get("/health", (_req, res) => {

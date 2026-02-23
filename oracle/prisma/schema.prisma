@@ -67,6 +67,7 @@ model Bet {
   outcome     Boolean
   shares      Float
   costBasis   Float
+  claimed     Boolean  @default(false)
   
   createdAt   DateTime @default(now())
   
