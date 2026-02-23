@@ -1,5 +1,6 @@
 import { getMarketContract } from "../../shared/blockchain/contracts";
 import { prisma } from "../../shared/database/prisma";
+import { notifyAdmin } from "../../shared/notifications/service";
 
 export const marketExecutor = {
   async proposeResolution(
@@ -23,6 +24,7 @@ export const marketExecutor = {
     console.log(
       `[Executor] Proposed ${outcome ? "YES" : "NO"} for market ${marketId}`
     );
+    notifyAdmin(`Resolution proposed: ${outcome ? "YES" : "NO"} for market ${marketId}`);
   },
 
   async canFinalize(contractAddress: string): Promise<boolean> {

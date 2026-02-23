@@ -3,6 +3,7 @@ import { dataServiceClient } from "../dataServiceClient";
 import { deployMarket } from "../../shared/blockchain/contracts";
 import { prisma } from "../../shared/database/prisma";
 import { config } from "../../shared/config/env";
+import { notifyAdmin } from "../../shared/notifications/service";
 
 class MarketCreator implements TickHandler {
   private lastGenerationAt: Date | null = null;
@@ -73,11 +74,13 @@ class MarketCreator implements TickHandler {
         console.log(
           `[MarketCreator] Deployed "${market.question}" → ${contractAddress}`
         );
+        notifyAdmin(`Deployed market: ${market.question} at ${contractAddress}`);
       } catch (error) {
         console.error(
           `[MarketCreator] Failed to deploy "${market.question}":`,
           error
         );
+        notifyAdmin(`Failed to deploy market: ${market.question}`);
       }
     }
   }

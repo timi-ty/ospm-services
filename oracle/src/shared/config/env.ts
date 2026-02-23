@@ -19,4 +19,9 @@ export const config = {
   oraclePrivateKey: process.env.ORACLE_PRIVATE_KEY || "",
   marketFactoryAddress: process.env.MARKET_FACTORY_ADDRESS || "",
   playTokenAddress: process.env.PLAY_TOKEN_ADDRESS || "",
+
+  // Notifications (optional)
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
+  telegramChatId: process.env.TELEGRAM_CHAT_ID || "",
+  discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL || "",
 } as const;
