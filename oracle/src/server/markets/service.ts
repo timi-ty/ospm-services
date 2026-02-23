@@ -3,16 +3,22 @@ import { prisma } from "../../shared/database/prisma";
 interface GetMarketsParams {
   status?: string;
   category?: string;
+  search?: string;
   limit: number;
   offset: number;
 }
 
 export async function getMarkets(params: GetMarketsParams) {
-  const { status, category, limit, offset } = params;
+  const { status, category, search, limit, offset } = params;
 
-  const where: Record<string, string> = {};
-  if (status) where.status = status;
+  const where: any = {};
+  if (status && status !== "all") {
+    where.status = status;
+  } else if (!status) {
+    where.status = "open";
+  }
   if (category) where.category = category;
+  if (search) where.question = { contains: search, mode: "insensitive" };
 
   const [markets, total] = await Promise.all([
     prisma.market.findMany({
@@ -26,10 +32,17 @@ export async function getMarkets(params: GetMarketsParams) {
         description: true,
         category: true,
         sourceUrl: true,
+        contractAddress: true,
         bettingClosesAt: true,
         resolvesAt: true,
         status: true,
+        resolvedOutcome: true,
+        b: true,
+        qYes: true,
+        qNo: true,
         createdAt: true,
+        deployedAt: true,
+        resolvedAt: true,
       },
     }),
     prisma.market.count({ where }),
@@ -45,17 +58,6 @@ export async function getMarkets(params: GetMarketsParams) {
 export async function getMarketById(id: string) {
   return prisma.market.findUnique({
     where: { id },
-    select: {
-      id: true,
-      question: true,
-      description: true,
-      category: true,
-      sourceUrl: true,
-      bettingClosesAt: true,
-      resolvesAt: true,
-      status: true,
-      createdAt: true,
-    },
   });
 }
 

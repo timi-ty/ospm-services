@@ -6,11 +6,12 @@ const router = Router();
 // GET /api/markets
 router.get("/", async (req, res) => {
   try {
-    const { status, category, limit = "20", offset = "0" } = req.query;
+    const { status, category, search, limit = "20", offset = "0" } = req.query;
 
     const result = await getMarkets({
       status: status as string | undefined,
       category: category as string | undefined,
+      search: search as string | undefined,
       limit: Math.min(parseInt(limit as string, 10) || 20, 100),
       offset: parseInt(offset as string, 10) || 0,
     });
