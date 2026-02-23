@@ -8,7 +8,7 @@ export const config = {
   tickIntervalMs: Number(process.env.TICK_INTERVAL_MS) || 60_000,
   marketCreationIntervalMs:
     Number(process.env.MARKET_CREATION_INTERVAL_MS) || 24 * 60 * 60 * 1000,
-  frontendUrl: process.env.FRONTEND_URL || "*",
+  frontendUrls: (process.env.FRONTEND_URL || "").split(",").map(s => s.trim()).filter(Boolean),
 
   // Auth (Privy)
   privyAppId: process.env.PRIVY_APP_ID || "",

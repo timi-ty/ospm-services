@@ -15,7 +15,7 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: [config.frontendUrl, "http://localhost:3000"].filter(Boolean),
+    origin: [...config.frontendUrls, "http://localhost:3000"].filter(Boolean),
     credentials: true,
   })
 );
