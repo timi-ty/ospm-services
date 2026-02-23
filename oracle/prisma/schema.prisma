@@ -16,6 +16,9 @@ model Market {
   category          String
   sourceUrl         String
   
+  // On-chain
+  contractAddress   String?  @unique
+  
   // Timing
   bettingClosesAt   DateTime
   resolvesAt        DateTime
@@ -23,16 +26,19 @@ model Market {
   // Status
   status            String   @default("pending")
   resolvedOutcome   Boolean?
-  resolutionContext String?
+  resolutionContext  String?
   
   // LMSR state (cached from chain for fast reads)
-  b                 Float    @default(100)  // Liquidity parameter
-  qYes              Float    @default(0)    // Outstanding YES shares
-  qNo               Float    @default(0)    // Outstanding NO shares
+  b                 Float    @default(100)
+  qYes              Float    @default(0)
+  qNo               Float    @default(0)
   
   // Timestamps
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  deployedAt        DateTime?
+  resolvedAt        DateTime?
+  proposedAt        DateTime?
   
   // Relations
   bets              Bet[]
@@ -43,20 +49,32 @@ model Market {
   @@index([createdAt])
 }
 
+model User {
+  id            String   @id @default(cuid())
+  privyUserId   String   @unique
+  address       String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  bets          Bet[]
+}
+
 model Bet {
   id          String   @id @default(cuid())
   marketId    String
+  userId      String?
   
-  visitorId   String?  // Cookie-based ID for anonymous users
-  outcome     Boolean  // true = YES, false = NO
-  shares      Float    // LMSR shares purchased
-  costBasis   Float    // Tokens spent
+  visitorId   String?
+  outcome     Boolean
+  shares      Float
+  costBasis   Float
   
   createdAt   DateTime @default(now())
   
   market      Market   @relation(fields: [marketId], references: [id])
+  user        User?    @relation(fields: [userId], references: [id])
   
   @@index([marketId])
+  @@index([userId])
   @@index([visitorId])
   @@index([createdAt])
 }

@@ -1,7 +1,9 @@
 import { app } from "./server";
 import { heart } from "./orchestrator/heart";
 import { marketCreator } from "./orchestrator/markets/creator";
+import { marketMonitor } from "./orchestrator/markets/monitor";
 import { dataServiceClient } from "./orchestrator/dataServiceClient";
+import { checkConnection } from "./shared/blockchain/client";
 import { config } from "./shared/config/env";
 
 async function main() {
@@ -15,6 +17,13 @@ async function main() {
     console.log("✓ Data Service healthy");
   }
 
+  // Health check blockchain
+  if (config.oraclePrivateKey && config.rpcUrl) {
+    await checkConnection();
+  } else {
+    console.warn("⚠️  Blockchain not configured (missing ORACLE_PRIVATE_KEY or RPC_URL)");
+  }
+
   // Start Express server
   app.listen(config.port, () => {
     console.log(`✓ Server listening on port ${config.port}`);
@@ -22,6 +31,7 @@ async function main() {
 
   // Start orchestrator
   heart.register("marketCreator", marketCreator);
+  heart.register("marketMonitor", marketMonitor);
   heart.start(config.tickIntervalMs);
   console.log("✓ Orchestrator started");
 }

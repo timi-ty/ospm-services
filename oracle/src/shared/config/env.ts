@@ -9,4 +9,14 @@ export const config = {
   marketCreationIntervalMs:
     Number(process.env.MARKET_CREATION_INTERVAL_MS) || 24 * 60 * 60 * 1000,
   frontendUrl: process.env.FRONTEND_URL || "*",
+
+  // Auth (Privy)
+  privyAppId: process.env.PRIVY_APP_ID || "",
+  privyAppSecret: process.env.PRIVY_APP_SECRET || "",
+
+  // Blockchain
+  rpcUrl: process.env.RPC_URL || "https://sepolia.base.org",
+  oraclePrivateKey: process.env.ORACLE_PRIVATE_KEY || "",
+  marketFactoryAddress: process.env.MARKET_FACTORY_ADDRESS || "",
+  playTokenAddress: process.env.PLAY_TOKEN_ADDRESS || "",
 } as const;
