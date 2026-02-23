@@ -18,6 +18,7 @@ from crawler import guided_crawl, CrawlConfig
 from crawler.browser_engine import BrowserEngine
 from generator import generate_markets
 from sources import SOURCES, DataSource
+from verifier import verify_outcome
 
 load_dotenv()
 
@@ -112,6 +113,18 @@ class SourcesResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     openai_configured: bool
+
+
+class VerifyOutcomeRequest(BaseModel):
+    source_url: str
+    question: str
+    resolution_context: str = ""
+
+
+class VerifyOutcomeResponse(BaseModel):
+    outcome: bool | None
+    confidence: float
+    evidence: str
 
 
 # --- Helper Functions ---
@@ -251,6 +264,28 @@ async def generate_markets_endpoint(request: GenerateMarketsRequest):
     logger.info(f"[Job {job_id}] Started for sources: {request.source_ids}")
     
     return TriggerResponse(job_id=job_id, status="accepted")
+
+
+@app.post("/verify-outcome", response_model=VerifyOutcomeResponse)
+async def verify_outcome_endpoint(request: VerifyOutcomeRequest):
+    """Verify the outcome of a market by analyzing the source URL."""
+    if not openai_client:
+        raise HTTPException(status_code=503, detail="OpenAI not configured")
+
+    model = os.getenv("AI_MODEL", "gpt-4o-mini")
+    result = await verify_outcome(
+        client=openai_client,
+        source_url=request.source_url,
+        question=request.question,
+        resolution_context=request.resolution_context,
+        model=model,
+    )
+
+    return VerifyOutcomeResponse(
+        outcome=result.outcome,
+        confidence=result.confidence,
+        evidence=result.evidence,
+    )
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
