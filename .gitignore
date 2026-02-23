@@ -118,6 +118,14 @@ ehthumbs.db
 Thumbs.db
 
 # ===========================
+# Foundry / Solidity
+# ===========================
+contracts/out/
+contracts/cache/
+contracts/lib/
+contracts/broadcast/
+
+# ===========================
 # Misc
 # ===========================
 *.bak
