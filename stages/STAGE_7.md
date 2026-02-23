@@ -1,6 +1,6 @@
 # Stage 7: User Dashboard, Notifications & Polish
 
-> **Status:** 🔲 TODO  
+> **Status:** ✅ COMPLETE  
 > **Repos:** ospm-frontend, ospm-services (oracle/)  
 > **Prerequisites:** Stage 5 (trading works), Stage 6 (lifecycle works)  
 > **Depends on:** Stage 5, Stage 6
