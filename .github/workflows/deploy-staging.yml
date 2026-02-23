@@ -38,6 +38,13 @@ jobs:
             NODE_ENV=production
             TICK_INTERVAL_MS=60000
             MARKET_CREATION_INTERVAL_MS=86400000
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            PRIVY_APP_ID=${{ secrets.PRIVY_APP_ID }}
+            PRIVY_APP_SECRET=${{ secrets.PRIVY_APP_SECRET }}
+            RPC_URL=${{ secrets.RPC_URL }}
+            ORACLE_PRIVATE_KEY=${{ secrets.ORACLE_PRIVATE_KEY }}
+            PLAY_TOKEN_ADDRESS=${{ secrets.PLAY_TOKEN_ADDRESS }}
+            MARKET_FACTORY_ADDRESS=${{ secrets.MARKET_FACTORY_ADDRESS }}
             ENVEOF
             
             # Ensure oracle has access to .env
