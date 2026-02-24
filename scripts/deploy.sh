@@ -167,12 +167,36 @@ echo "--- Starting Services ---"
 cd "$BASE_DIR"
 pm2 restart ecosystem.config.cjs --update-env 2>/dev/null || pm2 start ecosystem.config.cjs
 
-# Health checks
+# Health checks with retries
 echo ""
 echo "--- Health Checks ---"
-sleep 5
-curl -sf http://localhost:8000/health >/dev/null && echo "✓ Data Service healthy" || echo "✗ Data Service not responding"
-curl -sf http://localhost:3001/health >/dev/null && echo "✓ Oracle healthy" || echo "✗ Oracle not responding"
+
+check_health() {
+  local name="$1"
+  local url="$2"
+  local retries=5
+  local delay=3
+  for i in $(seq 1 $retries); do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      echo "✓ $name healthy"
+      return 0
+    fi
+    echo "  $name not ready (attempt $i/$retries), waiting ${delay}s..."
+    sleep $delay
+  done
+  echo "✗ $name failed health check after $retries attempts"
+  return 1
+}
+
+HEALTH_OK=true
+check_health "Data Service" "http://localhost:8000/health" || HEALTH_OK=false
+check_health "Oracle" "http://localhost:3001/health" || HEALTH_OK=false
 
 echo ""
-echo "=== Deployment Complete ==="
+if [ "$HEALTH_OK" = true ]; then
+  echo "=== Deployment Complete ==="
+else
+  echo "=== Deployment FAILED: one or more services unhealthy ==="
+  pm2 logs --lines 30 --nostream
+  exit 1
+fi
