@@ -3,6 +3,8 @@ import { ethers } from "ethers";
 import { authMiddleware, type AuthenticatedRequest } from "../middleware/auth";
 import { provider, getOracleWallet } from "../../shared/blockchain/client";
 import { prisma } from "../../shared/database/prisma";
+import { sendEmail } from "../../shared/email/service";
+import { gasClaimEmail } from "../../shared/email/templates";
 
 const router = Router();
 
@@ -14,7 +16,7 @@ router.post("/request", authMiddleware, async (req: AuthenticatedRequest, res) =
   try {
     const user = await prisma.user.findUnique({
       where: { privyUserId: req.user!.privyUserId },
-      select: { address: true, lastGasClaimAt: true },
+      select: { address: true, lastGasClaimAt: true, email: true },
     });
 
     if (!user) {
@@ -46,6 +48,14 @@ router.post("/request", authMiddleware, async (req: AuthenticatedRequest, res) =
     });
 
     console.log(`[Gas] Sent 0.001 ETH to ${address} (tx: ${tx.hash})`);
+
+    if (user.email) {
+      sendEmail(
+        user.email,
+        "Gas Claimed on OSPM",
+        gasClaimEmail(tx.hash, "0.001")
+      ).catch(() => {});
+    }
 
     res.json({
       success: true,

@@ -2,6 +2,8 @@ import { Router } from "express";
 import { PrivyClient } from "@privy-io/server-auth";
 import { prisma } from "../../shared/database/prisma";
 import { config } from "../../shared/config/env";
+import { sendEmail } from "../../shared/email/service";
+import { welcomeEmail } from "../../shared/email/templates";
 
 const router = Router();
 
@@ -33,15 +35,35 @@ router.post("/verify", async (req, res) => {
     );
     const address = (walletAccount as any)?.address || null;
 
-    // Upsert user in DB
+    const email =
+      privyUser.google?.email ||
+      privyUser.email?.address ||
+      (privyUser.linkedAccounts?.find((a: any) => a.type === "email") as any)?.address ||
+      null;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { privyUserId: claims.userId },
+      select: { id: true },
+    });
+    const isNewUser = !existingUser;
+
     const user = await prisma.user.upsert({
       where: { privyUserId: claims.userId },
-      update: { ...(address ? { address } : {}) },
+      update: { ...(address ? { address } : {}), ...(email ? { email } : {}) },
       create: {
         privyUserId: claims.userId,
         address: address || `pending-${claims.userId}`,
+        email,
       },
     });
+
+    const isTestUser =
+      config.testUserEmail &&
+      email?.toLowerCase() === config.testUserEmail.toLowerCase();
+
+    if (email && (isNewUser || isTestUser)) {
+      sendEmail(email, "Welcome to OSPM", welcomeEmail()).catch(() => {});
+    }
 
     res.json({
       success: true,
