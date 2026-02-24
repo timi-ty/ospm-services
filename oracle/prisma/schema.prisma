@@ -80,3 +80,13 @@ model Bet {
   @@index([visitorId])
   @@index([createdAt])
 }
+
+model HealthLog {
+  id          String   @id @default(cuid())
+  tickCount   Int
+  status      String
+  details     String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}

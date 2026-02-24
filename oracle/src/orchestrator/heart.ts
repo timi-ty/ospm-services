@@ -1,4 +1,5 @@
 import type { TickContext, TickHandler } from "./types";
+import { prisma } from "../shared/database/prisma";
 
 class Heart {
   private intervalId: NodeJS.Timeout | null = null;
@@ -37,13 +38,43 @@ class Heart {
       intervalMs: 60_000,
     };
 
+    const handlerResults: Record<string, string> = {};
+    let allHealthy = true;
+
     for (const [name, handler] of this.handlers) {
       try {
         await handler.tick(context);
         this.handlerLastRun.set(name, new Date());
+        handlerResults[name] = "ok";
       } catch (error) {
         console.error(`[Heart] "${name}" failed:`, error);
+        handlerResults[name] = "error";
+        allHealthy = false;
       }
+    }
+
+    try {
+      await prisma.healthLog.create({
+        data: {
+          tickCount: this.tickCount,
+          status: allHealthy ? "healthy" : "degraded",
+          details: JSON.stringify(handlerResults),
+        },
+      });
+      // Keep only last 100 entries
+      const cutoff = await prisma.healthLog.findMany({
+        orderBy: { createdAt: "desc" },
+        skip: 100,
+        take: 1,
+        select: { createdAt: true },
+      });
+      if (cutoff.length > 0) {
+        await prisma.healthLog.deleteMany({
+          where: { createdAt: { lt: cutoff[0].createdAt } },
+        });
+      }
+    } catch {
+      // Non-critical: don't crash the tick loop
     }
   }
 
