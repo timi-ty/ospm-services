@@ -3,7 +3,17 @@ import { config } from "../config/env";
 
 export const provider = new ethers.JsonRpcProvider(config.rpcUrl);
 
-export const oracleWallet = new ethers.Wallet(config.oraclePrivateKey, provider);
+let _wallet: ethers.Wallet = new ethers.Wallet(config.oraclePrivateKey, provider);
+
+export function getOracleWallet(): ethers.Wallet {
+  return _wallet;
+}
+
+export function setOracleWallet(privateKey: string): ethers.Wallet {
+  _wallet = new ethers.Wallet(privateKey, provider);
+  console.log(`[Wallet] Updated oracle wallet: ${_wallet.address}`);
+  return _wallet;
+}
 
 export async function checkConnection(): Promise<boolean> {
   try {

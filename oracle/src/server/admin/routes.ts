@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ethers } from "ethers";
 import {
   getStats,
   getTimeseries,
@@ -7,9 +8,16 @@ import {
   triggerGeneration,
   triggerDeployment,
   getSystemInfo,
+  getMarketMakingStats,
 } from "./service";
+import { adminAuthMiddleware } from "../middleware/adminAuth";
+import { setOracleWallet } from "../../shared/blockchain/client";
+import { updateEnvVar } from "../../shared/config/envWriter";
+import { config } from "../../shared/config/env";
 
 const router = Router();
+
+router.use(adminAuthMiddleware);
 
 // ── Stats ────────────────────────────────────────────────────────────────
 
@@ -116,6 +124,54 @@ router.get("/system", async (_req, res) => {
   } catch (error) {
     console.error("GET /admin/system error:", error);
     res.status(500).json({ error: "Failed to fetch system info" });
+  }
+});
+
+// ── Market Making ───────────────────────────────────────────────────────
+
+router.get("/market-making", async (_req, res) => {
+  try {
+    const stats = await getMarketMakingStats();
+    res.json(stats);
+  } catch (error) {
+    console.error("GET /admin/market-making error:", error);
+    res.status(500).json({ error: "Failed to fetch market-making stats" });
+  }
+});
+
+// ── Wallet Configuration ────────────────────────────────────────────────
+
+router.post("/wallet", async (req, res) => {
+  try {
+    const { privateKey, password } = req.body;
+
+    if (!privateKey || !password) {
+      return res.status(400).json({ error: "privateKey and password required" });
+    }
+
+    if (!config.adminPassword) {
+      return res.status(500).json({ error: "ADMIN_PASSWORD not configured on server" });
+    }
+
+    if (password !== config.adminPassword) {
+      return res.status(403).json({ error: "Invalid admin password" });
+    }
+
+    let address: string;
+    try {
+      const wallet = new ethers.Wallet(privateKey);
+      address = wallet.address;
+    } catch {
+      return res.status(400).json({ error: "Invalid private key" });
+    }
+
+    setOracleWallet(privateKey);
+    updateEnvVar("ORACLE_PRIVATE_KEY", privateKey);
+
+    res.json({ success: true, address });
+  } catch (error: any) {
+    console.error("POST /admin/wallet error:", error);
+    res.status(500).json({ error: error.message || "Failed to update wallet" });
   }
 });
 

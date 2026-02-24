@@ -45,6 +45,8 @@ jobs:
             ORACLE_PRIVATE_KEY=${{ secrets.ORACLE_PRIVATE_KEY }}
             PLAY_TOKEN_ADDRESS=${{ secrets.PLAY_TOKEN_ADDRESS }}
             MARKET_FACTORY_ADDRESS=${{ secrets.MARKET_FACTORY_ADDRESS }}
+            ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
             ENVEOF
             
             # Ensure oracle has access to .env

@@ -20,6 +20,10 @@ export const config = {
   marketFactoryAddress: process.env.MARKET_FACTORY_ADDRESS || "",
   playTokenAddress: process.env.PLAY_TOKEN_ADDRESS || "",
 
+  // Admin
+  adminEmail: process.env.ADMIN_EMAIL || "",
+  adminPassword: process.env.ADMIN_PASSWORD || "",
+
   // Notifications (optional)
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   telegramChatId: process.env.TELEGRAM_CHAT_ID || "",

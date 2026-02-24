@@ -1,8 +1,8 @@
 import { prisma } from "../../shared/database/prisma";
 import { heart } from "../../orchestrator/heart";
 import { dataServiceClient } from "../../orchestrator/dataServiceClient";
-import { provider, oracleWallet } from "../../shared/blockchain/client";
-import { marketFactory } from "../../shared/blockchain/contracts";
+import { provider, getOracleWallet } from "../../shared/blockchain/client";
+import { getMarketFactory, getPlayTokenContract } from "../../shared/blockchain/contracts";
 import { deployMarket } from "../../shared/blockchain/contracts";
 import { config } from "../../shared/config/env";
 import { ethers } from "ethers";
@@ -52,7 +52,7 @@ export async function getStats() {
   let oracleWalletBalance = "0";
   try {
     if (config.oraclePrivateKey) {
-      const bal = await provider.getBalance(oracleWallet.address);
+      const bal = await provider.getBalance(getOracleWallet().address);
       oracleWalletBalance = ethers.formatEther(bal);
       blockchainConnected = true;
     }
@@ -273,17 +273,18 @@ export async function getSystemInfo() {
   let blockchain: any = { connected: false };
   try {
     if (config.oraclePrivateKey) {
-      const bal = await provider.getBalance(oracleWallet.address);
+      const wallet = getOracleWallet();
+      const bal = await provider.getBalance(wallet.address);
       const network = await provider.getNetwork();
       let factoryMarketCount = 0;
       try {
-        factoryMarketCount = Number(await marketFactory.getMarketCount());
+        factoryMarketCount = Number(await getMarketFactory().getMarketCount());
       } catch {}
 
       blockchain = {
         connected: true,
         chainId: Number(network.chainId),
-        oracleAddress: oracleWallet.address,
+        oracleAddress: wallet.address,
         oracleBalance: ethers.formatEther(bal),
         marketFactoryAddress: config.marketFactoryAddress,
         playTokenAddress: config.playTokenAddress,
@@ -310,5 +311,84 @@ export async function getSystemInfo() {
       healthy: dataServiceHealthy,
     },
     blockchain,
+  };
+}
+
+// ── Market-Making Stats ─────────────────────────────────────────────────
+
+export async function getMarketMakingStats() {
+  const markets = await prisma.market.findMany({
+    where: {
+      contractAddress: { not: null },
+      status: { in: ["open", "closed"] },
+    },
+    select: {
+      id: true,
+      question: true,
+      bets: {
+        select: { outcome: true, shares: true, costBasis: true },
+      },
+    },
+  });
+
+  let aggCollected = 0;
+  let aggMaxPayout = 0;
+  let aggExposure = 0;
+  let marketsWithBets = 0;
+
+  const perMarket = markets
+    .filter((m) => m.bets.length > 0)
+    .map((m) => {
+      let totalCollected = 0;
+      let totalYesShares = 0;
+      let totalNoShares = 0;
+
+      for (const bet of m.bets) {
+        totalCollected += bet.costBasis;
+        if (bet.outcome) totalYesShares += bet.shares;
+        else totalNoShares += bet.shares;
+      }
+
+      const maxPayout = Math.max(totalYesShares, totalNoShares);
+      const exposure = maxPayout - totalCollected;
+
+      aggCollected += totalCollected;
+      aggMaxPayout += maxPayout;
+      aggExposure += exposure;
+      marketsWithBets++;
+
+      return {
+        id: m.id,
+        question: m.question,
+        totalCollected: +totalCollected.toFixed(2),
+        totalYesShares: +totalYesShares.toFixed(2),
+        totalNoShares: +totalNoShares.toFixed(2),
+        maxPayout: +maxPayout.toFixed(2),
+        exposure: +exposure.toFixed(2),
+      };
+    });
+
+  let oracleEthBalance = "0";
+  let oraclePlayBalance = "0";
+  try {
+    const wallet = getOracleWallet();
+    const ethBal = await provider.getBalance(wallet.address);
+    oracleEthBalance = ethers.formatEther(ethBal);
+
+    if (config.playTokenAddress) {
+      const playToken = getPlayTokenContract();
+      const playBal = await playToken.balanceOf(wallet.address);
+      oraclePlayBalance = ethers.formatEther(playBal);
+    }
+  } catch {}
+
+  return {
+    oracleEthBalance,
+    oraclePlayBalance,
+    marketCount: marketsWithBets,
+    totalCollected: +aggCollected.toFixed(2),
+    maxPotentialPayout: +aggMaxPayout.toFixed(2),
+    totalExposure: +aggExposure.toFixed(2),
+    markets: perMarket,
   };
 }

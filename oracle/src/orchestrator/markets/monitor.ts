@@ -1,7 +1,7 @@
 import { shouldTick, type TickContext, type TickHandler } from "../types";
 import { dataServiceClient } from "../dataServiceClient";
 import { marketExecutor } from "./executor";
-import { getMarketContract, marketFactory } from "../../shared/blockchain/contracts";
+import { getMarketContract, getMarketFactory } from "../../shared/blockchain/contracts";
 import { prisma } from "../../shared/database/prisma";
 import { ethers } from "ethers";
 import { notifyAdmin } from "../../shared/notifications/service";
@@ -141,7 +141,7 @@ class MarketMonitor implements TickHandler {
 
   private async syncMarketsFromChain() {
     try {
-      const chainAddresses: string[] = await marketFactory.getMarkets();
+      const chainAddresses: string[] = await getMarketFactory().getMarkets();
       if (chainAddresses.length === 0) return;
 
       const dbMarkets = await prisma.market.findMany({

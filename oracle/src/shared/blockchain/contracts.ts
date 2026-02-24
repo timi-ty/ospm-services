@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { oracleWallet } from "./client";
+import { getOracleWallet } from "./client";
 import { config } from "../config/env";
 
 const MARKET_FACTORY_ABI = [
@@ -29,14 +29,22 @@ const BINARY_MARKET_ABI = [
   "event MarketResolved(bool outcome)",
 ];
 
-export const marketFactory = new ethers.Contract(
-  config.marketFactoryAddress,
-  MARKET_FACTORY_ABI,
-  oracleWallet
-);
+const PLAY_TOKEN_ABI = [
+  "function balanceOf(address account) view returns (uint256)",
+];
+
+const factoryInterface = new ethers.Interface(MARKET_FACTORY_ABI);
+
+export function getPlayTokenContract() {
+  return new ethers.Contract(config.playTokenAddress, PLAY_TOKEN_ABI, getOracleWallet());
+}
+
+export function getMarketFactory() {
+  return new ethers.Contract(config.marketFactoryAddress, MARKET_FACTORY_ABI, getOracleWallet());
+}
 
 export function getMarketContract(address: string) {
-  return new ethers.Contract(address, BINARY_MARKET_ABI, oracleWallet);
+  return new ethers.Contract(address, BINARY_MARKET_ABI, getOracleWallet());
 }
 
 export async function deployMarket(
@@ -45,7 +53,8 @@ export async function deployMarket(
   bettingCloseTimestamp: number,
   resolutionTimestamp: number
 ): Promise<string> {
-  const tx = await marketFactory.createMarket(
+  const factory = getMarketFactory();
+  const tx = await factory.createMarket(
     question,
     sourceUrl,
     bettingCloseTimestamp,
@@ -54,15 +63,14 @@ export async function deployMarket(
   );
   const receipt = await tx.wait();
 
-  // Parse MarketCreated event to get the deployed address
   for (const log of receipt.logs) {
     try {
-      const parsed = marketFactory.interface.parseLog({
+      const parsed = factoryInterface.parseLog({
         topics: log.topics as string[],
         data: log.data,
       });
       if (parsed?.name === "MarketCreated") {
-        return parsed.args[0]; // market address
+        return parsed.args[0];
       }
     } catch {
       // Not our event, skip
