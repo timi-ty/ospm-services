@@ -9,6 +9,9 @@ import {
   triggerDeployment,
   getSystemInfo,
   getMarketMakingStats,
+  broadcastEmail,
+  getBroadcastStatus,
+  getEmailableUserCount,
 } from "./service";
 import { adminAuthMiddleware } from "../middleware/adminAuth";
 import { setOracleWallet } from "../../shared/blockchain/client";
@@ -172,6 +175,42 @@ router.post("/wallet", async (req, res) => {
   } catch (error: any) {
     console.error("POST /admin/wallet error:", error);
     res.status(500).json({ error: error.message || "Failed to update wallet" });
+  }
+});
+
+// ── Email Broadcast ─────────────────────────────────────────────────────
+
+router.post("/email/broadcast", async (req, res) => {
+  try {
+    const { subject, html } = req.body;
+    if (!subject || !html) {
+      return res.status(400).json({ error: "subject and html required" });
+    }
+    const result = await broadcastEmail(subject, html);
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error("POST /admin/email/broadcast error:", error);
+    res.status(400).json({ error: error.message || "Failed to start broadcast" });
+  }
+});
+
+router.get("/email/status", async (_req, res) => {
+  try {
+    const status = getBroadcastStatus();
+    res.json(status);
+  } catch (error) {
+    console.error("GET /admin/email/status error:", error);
+    res.status(500).json({ error: "Failed to fetch broadcast status" });
+  }
+});
+
+router.get("/email/user-count", async (_req, res) => {
+  try {
+    const count = await getEmailableUserCount();
+    res.json({ count });
+  } catch (error) {
+    console.error("GET /admin/email/user-count error:", error);
+    res.status(500).json({ error: "Failed to count users" });
   }
 });
 

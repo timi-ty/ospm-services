@@ -6,6 +6,8 @@ import { getMarketFactory, getPlayTokenContract } from "../../shared/blockchain/
 import { deployMarket } from "../../shared/blockchain/contracts";
 import { config } from "../../shared/config/env";
 import { ethers } from "ethers";
+import sanitizeHtml from "sanitize-html";
+import { sendEmail } from "../../shared/email/service";
 
 const oracleStartedAt = new Date();
 
@@ -391,4 +393,84 @@ export async function getMarketMakingStats() {
     totalExposure: +aggExposure.toFixed(2),
     markets: perMarket,
   };
+}
+
+// ── Email Broadcast ─────────────────────────────────────────────────────
+
+interface BroadcastState {
+  status: "idle" | "sending" | "done";
+  total: number;
+  sent: number;
+  failed: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+let broadcastState: BroadcastState = {
+  status: "idle",
+  total: 0,
+  sent: 0,
+  failed: 0,
+  startedAt: null,
+  finishedAt: null,
+};
+
+export function getBroadcastStatus() {
+  return { ...broadcastState };
+}
+
+export async function getEmailableUserCount(): Promise<number> {
+  return prisma.user.count({ where: { email: { not: null } } });
+}
+
+export async function broadcastEmail(subject: string, rawHtml: string) {
+  if (broadcastState.status === "sending") {
+    throw new Error("A broadcast is already in progress");
+  }
+
+  const cleanHtml = sanitizeHtml(rawHtml, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+      "img", "style", "h1", "h2",
+    ]),
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      "*": ["style", "class"],
+      img: ["src", "alt", "width", "height", "style"],
+      a: ["href", "target", "rel", "style"],
+    },
+  });
+
+  const users = await prisma.user.findMany({
+    where: { email: { not: null } },
+    select: { email: true },
+  });
+
+  broadcastState = {
+    status: "sending",
+    total: users.length,
+    sent: 0,
+    failed: 0,
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+  };
+
+  (async () => {
+    for (const user of users) {
+      try {
+        await sendEmail(user.email!, subject, cleanHtml);
+        broadcastState.sent++;
+      } catch {
+        broadcastState.failed++;
+      }
+      // Small delay to avoid SMTP rate limits
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    broadcastState.status = "done";
+    broadcastState.finishedAt = new Date().toISOString();
+    console.log(
+      `[Broadcast] Finished: ${broadcastState.sent} sent, ${broadcastState.failed} failed out of ${broadcastState.total}`
+    );
+  })();
+
+  return { total: users.length };
 }
