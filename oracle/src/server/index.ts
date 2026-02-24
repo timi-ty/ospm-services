@@ -8,6 +8,7 @@ import { adminRouter } from "./admin/routes";
 import { authRouter } from "./auth/routes";
 import { usersRouter } from "./users/routes";
 import { leaderboardRouter } from "./leaderboard/routes";
+import { gasRouter } from "./gas/routes";
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use("/api/markets", marketsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/leaderboard", leaderboardRouter);
+app.use("/api/gas", gasRouter);
 
 // Health check
 app.get("/health", (_req, res) => {
