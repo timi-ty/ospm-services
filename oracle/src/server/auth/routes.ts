@@ -61,8 +61,12 @@ router.post("/verify", async (req, res) => {
       config.testUserEmail &&
       email?.toLowerCase() === config.testUserEmail.toLowerCase();
 
+    console.log(`[Auth] User verified: email=${email}, isNew=${isNewUser}, isTest=${isTestUser}`);
+
     if (email && (isNewUser || isTestUser)) {
-      sendEmail(email, "Welcome to OSPM", welcomeEmail()).catch(() => {});
+      sendEmail(email, "Welcome to OSPM", welcomeEmail()).catch((err) => {
+        console.error("[Auth] Welcome email failed:", err);
+      });
     }
 
     res.json({
