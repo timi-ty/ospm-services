@@ -1,0 +1,16 @@
+[Unit]
+Description=OSPM Oracle Service
+After=network.target postgresql.service ospm-data.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/ospm-services/oracle
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+EnvironmentFile=/home/ubuntu/ospm-services/.env
+Environment=NODE_ENV=production PORT=3001 DATA_SERVICE_URL=http://localhost:8000
+
+[Install]
+WantedBy=multi-user.target

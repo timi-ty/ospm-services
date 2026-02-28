@@ -48,12 +48,14 @@ sudo -u postgres psql -c "CREATE USER ospm WITH PASSWORD 'ospm_secure_password';
 sudo -u postgres psql -c "CREATE DATABASE ospm OWNER ospm;" 2>/dev/null || true
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ospm TO ospm;" 2>/dev/null || true
 
-# PM2
-if ! command -v pm2 &>/dev/null; then
-    echo "Installing PM2..."
-    sudo npm install -g pm2
-else
-    echo "✓ PM2 installed"
+# Clean up PM2 if still present (one-time migration to systemd)
+if command -v pm2 &>/dev/null; then
+    echo "Migrating from PM2 to systemd..."
+    pm2 kill 2>/dev/null || true
+    pm2 unstartup systemd 2>/dev/null || true
+    sudo npm uninstall -g pm2
+    rm -rf ~/.pm2
+    echo "✓ PM2 removed"
 fi
 
 # nginx
@@ -161,11 +163,16 @@ npx prisma generate
 echo "Seeding database..."
 npm run db:seed
 
-# Restart services with PM2
+# Install systemd units and start services
 echo ""
 echo "--- Starting Services ---"
 cd "$BASE_DIR"
-pm2 restart ecosystem.config.cjs --update-env 2>/dev/null || pm2 start ecosystem.config.cjs
+sudo cp systemd/ospm-data.service /etc/systemd/system/
+sudo cp systemd/ospm-oracle.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable ospm-data ospm-oracle
+sudo systemctl restart ospm-data
+sudo systemctl restart ospm-oracle
 
 # Health checks with retries
 echo ""
@@ -197,6 +204,7 @@ if [ "$HEALTH_OK" = true ]; then
   echo "=== Deployment Complete ==="
 else
   echo "=== Deployment FAILED: one or more services unhealthy ==="
-  pm2 logs --lines 30 --nostream
+  echo "--- Recent logs ---"
+  sudo journalctl -u ospm-data -u ospm-oracle --no-pager -n 40
   exit 1
 fi
