@@ -2,7 +2,7 @@ import { config } from "../config/env";
 
 function getLogoUrl(): string {
   const base = config.frontendUrls[0] || "http://localhost:3000";
-  return `${base}/logo_small.png`;
+  return `${base}/api/logo?size=96`;
 }
 
 function wrap(body: string): string {
